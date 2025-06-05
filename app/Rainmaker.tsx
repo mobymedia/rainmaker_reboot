@@ -1,13 +1,13 @@
-// Rainmaker.tsx
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { ethers } from "ethers";
-import { CloudRain, Upload, Wallet, Zap, History, RefreshCw } from "lucide-react";
+import { CloudRain, Upload, Wallet, Zap, History, RefreshCw, Info, X } from "lucide-react";
 import Head from "next/head";
 import toast, { Toaster } from "react-hot-toast";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Papa from "papaparse";
+import { Dialog, Transition } from '@headlessui/react';
 import { useRainmakerStore, SUPPORTED_NETWORKS } from "./store";
 
 const ABI = [
@@ -15,7 +15,8 @@ const ABI = [
   "function disperseToken(address token, address[] recipients, uint256[] values) external",
   "function balanceOf(address account) view returns (uint256)",
   "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)"
+  "function symbol() view returns (string)",
+  "function name() view returns (string)"
 ];
 
 const CONTRACTS: Record<number, string> = {
@@ -41,7 +42,10 @@ export default function Rainmaker() {
 
   const [inputText, setInputText] = useState("");
   const [tokenAddress, setTokenAddress] = useState("");
-  const [tokenInfo, setTokenInfo] = useState<{ symbol: string; balance: string } | null>(null);
+  const [tokenInfo, setTokenInfo] = useState<{ symbol: string; name: string; balance: string } | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [recipientCount, setRecipientCount] = useState(0);
+  const [totalAmount, setTotalAmount] = useState("0");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentNetwork = useMemo(() => 
@@ -53,7 +57,6 @@ export default function Rainmaker() {
     const history = localStorage.getItem("rainmaker-history");
     if (history) setInputText(history);
 
-    // Setup network change listener
     if (window.ethereum) {
       window.ethereum.on('chainChanged', (chainId: string) => {
         setChainId(parseInt(chainId));
@@ -73,31 +76,48 @@ export default function Rainmaker() {
 
   useEffect(() => {
     localStorage.setItem("rainmaker-history", inputText);
+    
+    const lines = inputText.trim().split("\n").filter(line => line.trim() !== "");
+    setRecipientCount(lines.length);
+    
+    const total = lines.reduce((sum, line) => {
+      const [, amount] = line.split(/[\s,]+/).map(s => s.trim());
+      return sum + (isNaN(Number(amount)) ? 0 : Number(amount));
+    }, 0);
+    setTotalAmount(total.toFixed(4));
   }, [inputText]);
 
   useEffect(() => {
-    if (!account || !tokenAddress || !window.ethereum) return;
+    if (!account || !tokenAddress || !window.ethereum) {
+      setTokenInfo(null);
+      return;
+    }
     
     const fetchTokenInfo = async () => {
       try {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
         const tokenContract = new ethers.Contract(tokenAddress, ABI, provider);
-        const [symbol, decimals, balance] = await Promise.all([
+        const [symbol, name, decimals, balance] = await Promise.all([
           tokenContract.symbol(),
+          tokenContract.name(),
           tokenContract.decimals(),
           tokenContract.balanceOf(account)
         ]);
         
         setTokenInfo({
           symbol,
+          name,
           balance: ethers.utils.formatUnits(balance, decimals)
         });
+        toast.success(`Detected ${name} (${symbol})`);
       } catch (err) {
         setTokenInfo(null);
+        toast.error("Invalid token address");
       }
     };
 
-    fetchTokenInfo();
+    const debounceTimer = setTimeout(fetchTokenInfo, 500);
+    return () => clearTimeout(debounceTimer);
   }, [account, tokenAddress]);
 
   const connectWallet = async () => {
@@ -163,7 +183,6 @@ export default function Rainmaker() {
       }
 
       try {
-        // Validate amount is a valid number
         if (isNaN(Number(amount)) || Number(amount) <= 0) {
           throw new Error(`Invalid amount: ${amount}`);
         }
@@ -198,7 +217,6 @@ export default function Rainmaker() {
       
       const { recipients, amounts } = validated;
 
-      // Process in batches
       for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
         const batchRecipients = recipients.slice(i, i + BATCH_SIZE);
         const batchAmounts = amounts.slice(i, i + BATCH_SIZE);
@@ -284,19 +302,23 @@ export default function Rainmaker() {
                       {currentNetwork.name}
                     </div>
                   )}
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={connectWallet}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-semibold"
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                   >
                     <Wallet className="w-4 h-4" />
                     {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
-                  </button>
+                  </motion.button>
                 </div>
               </div>
               <div className="mt-4 flex gap-2 flex-wrap">
                 {SUPPORTED_NETWORKS.map((network) => (
-                  <button
+                  <motion.button
                     key={network.chainId}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => switchNetwork(network.chainId)}
                     className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                       chainId === network.chainId
@@ -305,16 +327,30 @@ export default function Rainmaker() {
                     }`}
                   >
                     {network.name}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
 
             <div className="p-6 md:p-8 space-y-6">
               <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-300">Wallets & Amounts</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm font-semibold text-gray-300">Wallets & Amounts</label>
+                  <div className="flex items-center gap-4 text-sm">
+                    <span className="text-gray-400">Recipients: {recipientCount}</span>
+                    <span className="text-gray-400">Total: {totalAmount} {currentNetwork?.symbol || ''}</span>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setIsPreviewOpen(true)}
+                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                    >
+                      <Info className="w-4 h-4" /> Preview
+                    </motion.button>
+                  </div>
+                </div>
                 <textarea
-                  className="w-full h-48 p-4 text-sm rounded-lg bg-[#2a2a3d] text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full h-48 p-4 text-sm rounded-lg bg-[#2a2a3d] text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="0xabc123...,0.1&#13;&#10;0xdef456...,0.25"
@@ -332,21 +368,27 @@ export default function Rainmaker() {
                   <input
                     type="text"
                     placeholder="Enter token contract address"
-                    className="flex-1 p-3 text-sm rounded-md bg-[#2a2a3d] text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 p-3 text-sm rounded-md bg-[#2a2a3d] text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     value={tokenAddress}
                     onChange={(e) => setTokenAddress(e.target.value)}
                   />
                   {tokenInfo && (
-                    <div className="bg-[#2a2a3d] px-4 py-2 rounded-lg">
-                      <p className="text-sm font-medium">{tokenInfo.symbol}</p>
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="bg-[#2a2a3d] px-4 py-2 rounded-lg"
+                    >
+                      <p className="text-sm font-medium">{tokenInfo.name} ({tokenInfo.symbol})</p>
                       <p className="text-xs text-gray-400">Balance: {tokenInfo.balance}</p>
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-4 items-center">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleSend}
                   disabled={isLoading}
                   className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold shadow-md transition-all ${
@@ -361,13 +403,15 @@ export default function Rainmaker() {
                     <Zap className="w-4 h-4" />
                   )}
                   {isLoading ? "Processing..." : "Send"}
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => fileInputRef.current?.click()}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-2.5 rounded-lg text-sm font-semibold shadow-md transition-all"
                 >
                   <Upload className="w-4 h-4" /> Upload CSV
-                </button>
+                </motion.button>
                 <input
                   type="file"
                   accept=".csv"
@@ -378,15 +422,21 @@ export default function Rainmaker() {
               </div>
 
               {transactions.length > 0 && (
-                <div className="mt-8">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-8"
+                >
                   <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
                     <History className="w-5 h-5" /> Recent Transactions
                   </h2>
                   <div className="space-y-2">
                     {transactions.slice(0, 5).map((tx) => (
-                      <div
+                      <motion.div
                         key={tx.hash}
-                        className="bg-[#2a2a3d] p-4 rounded-lg"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="bg-[#2a2a3d] p-4 rounded-lg hover:bg-[#3a3a4d] transition-colors"
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -406,15 +456,100 @@ export default function Rainmaker() {
                             </p>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
         </div>
       </motion.div>
+
+      <Transition show={isPreviewOpen} as={React.Fragment}>
+        <Dialog
+          as="div"
+          className="fixed inset-0 z-10 overflow-y-auto"
+          onClose={() => setIsPreviewOpen(false)}
+        >
+          <div className="min-h-screen px-4 text-center">
+            <Transition.Child
+              as={React.Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" />
+            </Transition.Child>
+
+            <span
+              className="inline-block h-screen align-middle"
+              aria-hidden="true"
+            >
+              &#8203;
+            </span>
+            
+            <Transition.Child
+              as={React.Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-[#1c1c2c] shadow-xl rounded-2xl">
+                <div className="flex justify-between items-center mb-4">
+                  <Dialog.Title
+                    as="h3"
+                    className="text-lg font-medium leading-6 text-white"
+                  >
+                    Transaction Preview
+                  </Dialog.Title>
+                  <button
+                    onClick={() => setIsPreviewOpen(false)}
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="mt-2">
+                  <div className="space-y-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Total Recipients:</span>
+                      <span className="text-white font-medium">{recipientCount}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Total Amount:</span>
+                      <span className="text-white font-medium">
+                        {totalAmount} {tokenInfo?.symbol || currentNetwork?.symbol || ''}
+                      </span>
+                    </div>
+                    <div className="mt-4">
+                      <div className="text-sm text-gray-400 mb-2">Recipients Preview:</div>
+                      <div className="bg-[#2a2a3d] rounded-lg p-4 max-h-60 overflow-y-auto">
+                        {inputText.split('\n').slice(0, 5).map((line, index) => (
+                          <div key={index} className="text-sm mb-2 last:mb-0">
+                            {line}
+                          </div>
+                        ))}
+                        {recipientCount > 5 && (
+                          <div className="text-sm text-gray-400 mt-2">
+                            ... and {recipientCount - 5} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Transition.Child>
+          </div>
+        </Dialog>
+      </Transition>
     </>
   );
 }
