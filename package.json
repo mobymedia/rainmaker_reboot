@@ -8,6 +8,7 @@
     "test": "jest"
   },
   "dependencies": {
+    "@headlessui/react": "^1.7.17",
     "ethers": "^5.7.2",
     "framer-motion": "^10.12.16",
     "lucide-react": "^0.270.0",
