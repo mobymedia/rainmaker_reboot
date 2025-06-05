@@ -325,202 +325,204 @@ export default function Rainmaker() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="min-h-screen bg-gradient-to-br from-[#0f0f0f] to-[#1a1a2e] text-white p-6 md:p-12 font-sans"
+        className="min-h-screen bg-gradient-to-br from-dark-900 to-dark-700 text-white p-6 md:p-12 font-sans"
       >
         <div className="max-w-4xl mx-auto space-y-6">
-          <div className="rounded-2xl bg-[#1c1c2c] shadow-xl border border-gray-700 overflow-hidden">
-            <div className="bg-[#10101a] p-6 md:p-8 border-b border-gray-700">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-                  <CloudRain className="w-7 h-7 md:w-9 md:h-9 text-blue-400" /> Rainmaker
-                </h1>
-                <div className="flex items-center gap-2">
-                  {currentNetwork && (
-                    <div className="bg-[#2a2a3d] px-3 py-1.5 rounded-lg text-sm">
-                      {currentNetwork.name}
-                    </div>
-                  )}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={connectWallet}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
-                  </motion.button>
-                </div>
-              </div>
-              <div className="mt-4 flex gap-2 flex-wrap">
-                {SUPPORTED_NETWORKS.map((network) => (
-                  <motion.button
-                    key={network.chainId}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => switchNetwork(network.chainId)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                      chainId === network.chainId
-                        ? "bg-blue-600 text-white"
-                        : "bg-[#2a2a3d] text-gray-300 hover:bg-[#3a3a4d]"
-                    }`}
-                  >
-                    {network.name}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-6 md:p-8 space-y-6">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-semibold text-gray-300">Wallets & Amounts</label>
-                  <div className="flex items-center gap-4 text-sm">
-                    <span className="text-gray-400">Recipients: {recipientCount}</span>
-                    <span className="text-gray-400">Total: {totalAmount} {currentNetwork?.symbol || ''}</span>
+          <div className="gradient-border">
+            <div className="glass-effect rounded-2xl overflow-hidden">
+              <div className="bg-dark-800/50 p-6 md:p-8 border-b border-white/10">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
+                    <CloudRain className="w-7 h-7 md:w-9 md:h-9 text-primary-400" /> Rainmaker
+                  </h1>
+                  <div className="flex items-center gap-2">
+                    {currentNetwork && (
+                      <div className="glass-effect px-3 py-1.5 rounded-lg text-sm">
+                        {currentNetwork.name}
+                      </div>
+                    )}
                     <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setIsPreviewOpen(true)}
-                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={connectWallet}
+                      className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-glow"
                     >
-                      <Info className="w-4 h-4" /> Preview
+                      <Wallet className="w-4 h-4" />
+                      {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
                     </motion.button>
                   </div>
                 </div>
-                <textarea
-                  className="w-full h-48 p-4 text-sm rounded-lg bg-[#2a2a3d] text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="0xabc123...,0.1&#13;&#10;0xdef456...,0.25"
-                />
+                <div className="mt-4 flex gap-2 flex-wrap">
+                  {SUPPORTED_NETWORKS.map((network) => (
+                    <motion.button
+                      key={network.chainId}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => switchNetwork(network.chainId)}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                        chainId === network.chainId
+                          ? "bg-primary-600 text-white shadow-glow"
+                          : "glass-effect text-gray-300 hover:bg-dark-700/50"
+                      }`}
+                    >
+                      {network.name}
+                    </motion.button>
+                  ))}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold mb-2 text-gray-300">
-                  Token Address{" "}
-                  <span className="text-yellow-400">
-                    (leave blank for {currentNetwork?.symbol || "native token"})
-                  </span>
-                </label>
-                <div className="flex gap-4 items-center">
-                  <input
-                    type="text"
-                    placeholder="Enter token contract address"
-                    className="flex-1 p-3 text-sm rounded-md bg-[#2a2a3d] text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                    value={tokenAddress}
-                    onChange={(e) => setTokenAddress(e.target.value)}
+              <div className="p-6 md:p-8 space-y-6">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-semibold text-gray-300">Wallets & Amounts</label>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-gray-400">Recipients: {recipientCount}</span>
+                      <span className="text-gray-400">Total: {totalAmount} {currentNetwork?.symbol || ''}</span>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setIsPreviewOpen(true)}
+                        className="text-primary-400 hover:text-primary-300 flex items-center gap-1"
+                      >
+                        <Info className="w-4 h-4" /> Preview
+                      </motion.button>
+                    </div>
+                  </div>
+                  <textarea
+                    className="w-full h-48 p-4 text-sm rounded-lg glass-effect text-white border border-white/10 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder="0xabc123...,0.1&#13;&#10;0xdef456...,0.25"
                   />
-                  {tokenInfo && (
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="bg-[#2a2a3d] px-4 py-2 rounded-lg"
-                    >
-                      <p className="text-sm font-medium">{tokenInfo.name} ({tokenInfo.symbol})</p>
-                      <p className="text-xs text-gray-400">Balance: {tokenInfo.balance}</p>
-                    </motion.div>
-                  )}
-                  {tokenDetectionError && (
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-sm"
-                    >
-                      {tokenDetectionError}
-                    </motion.div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-300">
+                    Token Address{" "}
+                    <span className="text-primary-400">
+                      (leave blank for {currentNetwork?.symbol || "native token"})
+                    </span>
+                  </label>
+                  <div className="flex gap-4 items-center">
+                    <input
+                      type="text"
+                      placeholder="Enter token contract address"
+                      className="flex-1 p-3 text-sm rounded-md glass-effect text-white border border-white/10 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+                      value={tokenAddress}
+                      onChange={(e) => setTokenAddress(e.target.value)}
+                    />
+                    {tokenInfo && (
+                      <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="glass-effect px-4 py-2 rounded-lg"
+                      >
+                        <p className="text-sm font-medium">{tokenInfo.name} ({tokenInfo.symbol})</p>
+                        <p className="text-xs text-gray-400">Balance: {tokenInfo.balance}</p>
+                      </motion.div>
+                    )}
+                    {tokenDetectionError && (
+                      <motion.div
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-sm"
+                      >
+                        {tokenDetectionError}
+                      </motion.div>
+                    )}
+                  </div>
+                  {chainId && KNOWN_TOKENS[chainId] && (
+                    <div className="mt-2 flex gap-2">
+                      {Object.entries(KNOWN_TOKENS[chainId]).map(([symbol, address]) => (
+                        <button
+                          key={symbol}
+                          onClick={() => setTokenAddress(address)}
+                          className="text-xs bg-primary-500/20 text-primary-400 px-2 py-1 rounded hover:bg-primary-500/30 transition-colors"
+                        >
+                          {symbol}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </div>
-                {chainId && KNOWN_TOKENS[chainId] && (
-                  <div className="mt-2 flex gap-2">
-                    {Object.entries(KNOWN_TOKENS[chainId]).map(([symbol, address]) => (
-                      <button
-                        key={symbol}
-                        onClick={() => setTokenAddress(address)}
-                        className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded hover:bg-blue-500/30 transition-colors"
-                      >
-                        {symbol}
-                      </button>
-                    ))}
-                  </div>
+
+                <div className="flex flex-wrap gap-4 items-center">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleSend}
+                    disabled={isLoading}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold shadow-glow transition-all ${
+                      isLoading
+                        ? "bg-gray-600 cursor-not-allowed"
+                        : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600"
+                    }`}
+                  >
+                    {isLoading ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4" />
+                    )}
+                    {isLoading ? "Processing..." : "Send"}
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 px-6 py-2.5 rounded-lg text-sm font-semibold shadow-glow transition-all"
+                  >
+                    <Upload className="w-4 h-4" /> Upload CSV
+                  </motion.button>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVUpload}
+                    className="hidden"
+                    ref={fileInputRef}
+                  />
+                </div>
+
+                {transactions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-8"
+                  >
+                    <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+                      <History className="w-5 h-5" /> Recent Transactions
+                    </h2>
+                    <div className="space-y-2">
+                      {transactions.slice(0, 5).map((tx) => (
+                        <motion.div
+                          key={tx.hash}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="glass-effect p-4 rounded-lg hover:bg-dark-700/50 transition-all"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {new Date(tx.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm">
+                                {tx.recipients.length} recipients
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {tx.token ? "Token" : "Native"} transfer
+                              </p>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
                 )}
               </div>
-
-              <div className="flex flex-wrap gap-4 items-center">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleSend}
-                  disabled={isLoading}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold shadow-md transition-all ${
-                    isLoading
-                      ? "bg-gray-600 cursor-not-allowed"
-                      : "bg-green-600 hover:bg-green-700"
-                  }`}
-                >
-                  {isLoading ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Zap className="w-4 h-4" />
-                  )}
-                  {isLoading ? "Processing..." : "Send"}
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-2.5 rounded-lg text-sm font-semibold shadow-md transition-all"
-                >
-                  <Upload className="w-4 h-4" /> Upload CSV
-                </motion.button>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleCSVUpload}
-                  className="hidden"
-                  ref={fileInputRef}
-                />
-              </div>
-
-              {transactions.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-8"
-                >
-                  <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-                    <History className="w-5 h-5" /> Recent Transactions
-                  </h2>
-                  <div className="space-y-2">
-                    {transactions.slice(0, 5).map((tx) => (
-                      <motion.div
-                        key={tx.hash}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="bg-[#2a2a3d] p-4 rounded-lg hover:bg-[#3a3a4d] transition-colors"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="text-sm font-medium">
-                              {tx.hash.slice(0, 8)}...{tx.hash.slice(-6)}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {new Date(tx.timestamp).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm">
-                              {tx.recipients.length} recipients
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {tx.token ? "Token" : "Native"} transfer
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
             </div>
           </div>
         </div>
@@ -542,7 +544,7 @@ export default function Rainmaker() {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-75 transition-opacity" />
+              <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm transition-opacity" />
             </Transition.Child>
 
             <span
@@ -561,7 +563,7 @@ export default function Rainmaker() {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform bg-[#1c1c2c] shadow-xl rounded-2xl">
+              <div className="inline-block w-full max-w-2xl p-6 my-8 overflow-hidden text-left align-middle transition-all transform glass-effect rounded-2xl">
                 <div className="flex justify-between items-center mb-4">
                   <Dialog.Title
                     as="h3"
@@ -590,7 +592,7 @@ export default function Rainmaker() {
                     </div>
                     <div className="mt-4">
                       <div className="text-sm text-gray-400 mb-2">Recipients Preview:</div>
-                      <div className="bg-[#2a2a3d] rounded-lg p-4 max-h-60 overflow-y-auto">
+                      <div className="glass-effect rounded-lg p-4 max-h-60 overflow-y-auto">
                         {inputText.split('\n').slice(0, 5).map((line, index) => (
                           <div key={index} className="text-sm mb-2 last:mb-0">
                             {line}
