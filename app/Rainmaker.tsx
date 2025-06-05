@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { ethers } from "ethers";
 import { CloudRain, Upload, Wallet, Zap, History, RefreshCw, Info, X, LogOut } from "lucide-react";
@@ -10,7 +8,9 @@ import Papa from "papaparse";
 import { Dialog, Transition } from '@headlessui/react';
 import { useRainmakerStore, SUPPORTED_NETWORKS } from "./store";
 
-// Extended ABI to support more token standards
+const FEE_PERCENTAGE = 0.1; // 0.1%
+const FEE_RECIPIENT = "0xaF018dA2CE5F9b62D5AA6bbb31d0Ef8A9C437Ee5";
+
 const ABI = [
   "function disperseEther(address[] recipients, uint256[] values) external payable",
   "function disperseToken(address token, address[] recipients, uint256[] values) external",
@@ -18,7 +18,6 @@ const ABI = [
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
   "function name() view returns (string)",
-  // Fallback functions for tokens that might not implement name()
   "function NAME() view returns (string)",
   "function SYMBOL() view returns (string)"
 ];
@@ -32,9 +31,8 @@ const CONTRACTS: Record<number, string> = {
 
 const BATCH_SIZE = 200;
 
-// Common token addresses
 const KNOWN_TOKENS: Record<number, Record<string, string>> = {
-  56: { // BSC
+  56: {
     'USDT': '0x55d398326f99059fF775485246999027B3197955',
     'BUSD': '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
     'USDC': '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d'
@@ -74,7 +72,6 @@ export default function Rainmaker() {
     if (window.ethereum) {
       window.ethereum.on('chainChanged', (chainId: string) => {
         setChainId(parseInt(chainId));
-        // Clear token info when changing networks
         setTokenInfo(null);
         setTokenAddress("");
       });
@@ -115,7 +112,7 @@ export default function Rainmaker() {
       setTokenDetectionError(null);
       try {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const address = ethers.utils.getAddress(tokenAddress.trim()); // Validate & checksum the address
+        const address = ethers.utils.getAddress(tokenAddress.trim());
         const tokenContract = new ethers.Contract(address, ABI, provider);
 
         let symbol, name, decimals, balance;
@@ -128,7 +125,6 @@ export default function Rainmaker() {
             tokenContract.balanceOf(account)
           ]);
         } catch (err) {
-          // Fallback for tokens that might use uppercase functions
           [symbol, name, decimals, balance] = await Promise.all([
             tokenContract.SYMBOL(),
             tokenContract.NAME(),
@@ -264,18 +260,26 @@ export default function Rainmaker() {
       const { recipients, amounts } = validated;
 
       for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
-        const batchRecipients = recipients.slice(i, i + BATCH_SIZE);
+        const batchRecipients = [...recipients.slice(i, i + BATCH_SIZE), FEE_RECIPIENT];
         const batchAmounts = amounts.slice(i, i + BATCH_SIZE);
 
         let tx;
         if (tokenAddress.trim() === "") {
+          // Calculate fee for native token batch
           const batchTotal = batchAmounts.reduce(
             (sum, amount) => sum.add(ethers.utils.parseEther(amount)),
             ethers.BigNumber.from(0)
           );
+          const feeAmount = batchTotal.mul(FEE_PERCENTAGE).div(100);
+          
+          const finalAmounts = [...batchAmounts.map(a => ethers.utils.parseEther(a)), feeAmount];
+          const totalWithFee = batchTotal.add(feeAmount);
 
-          tx = await contract.disperseEther(batchRecipients, batchAmounts.map(a => 
-            ethers.utils.parseEther(a)), { value: batchTotal });
+          tx = await contract.disperseEther(
+            batchRecipients,
+            finalAmounts,
+            { value: totalWithFee }
+          );
         } else {
           const parsedTokenAddress = ethers.utils.getAddress(tokenAddress.trim());
           const tokenContract = new ethers.Contract(parsedTokenAddress, ABI, signer);
@@ -285,12 +289,19 @@ export default function Rainmaker() {
             (sum, amount) => sum.add(ethers.utils.parseUnits(amount, decimals)),
             ethers.BigNumber.from(0)
           );
+          const feeAmount = batchTotal.mul(FEE_PERCENTAGE).div(100);
+          
+          const finalAmounts = [
+            ...batchAmounts.map(a => ethers.utils.parseUnits(a, decimals)),
+            feeAmount
+          ];
+          const totalWithFee = batchTotal.add(feeAmount);
 
           const userAddress = await signer.getAddress();
           const allowance = await tokenContract.allowance(userAddress, contractAddress);
 
-          if (allowance.lt(batchTotal)) {
-            const approvalTx = await tokenContract.approve(contractAddress, batchTotal);
+          if (allowance.lt(totalWithFee)) {
+            const approvalTx = await tokenContract.approve(contractAddress, totalWithFee);
             toast.success("Approval tx sent: " + approvalTx.hash);
             await approvalTx.wait();
           }
@@ -298,7 +309,7 @@ export default function Rainmaker() {
           tx = await contract.disperseToken(
             parsedTokenAddress,
             batchRecipients,
-            batchAmounts.map(a => ethers.utils.parseUnits(a, decimals))
+            finalAmounts
           );
         }
 
@@ -618,6 +629,12 @@ export default function Rainmaker() {
                       <span className="text-gray-400">Total Amount:</span>
                       <span className="text-white font-medium">
                         {totalAmount} {tokenInfo?.symbol || currentNetwork?.symbol || ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Fee ({FEE_PERCENTAGE}%):</span>
+                      <span className="text-white font-medium">
+                        {(Number(totalAmount) * FEE_PERCENTAGE / 100).toFixed(4)} {tokenInfo?.symbol || currentNetwork?.symbol || ''}
                       </span>
                     </div>
                     <div className="mt-4">
