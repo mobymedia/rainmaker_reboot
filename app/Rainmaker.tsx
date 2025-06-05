@@ -10,13 +10,17 @@ import Papa from "papaparse";
 import { Dialog, Transition } from '@headlessui/react';
 import { useRainmakerStore, SUPPORTED_NETWORKS } from "./store";
 
+// Extended ABI to support more token standards
 const ABI = [
   "function disperseEther(address[] recipients, uint256[] values) external payable",
   "function disperseToken(address token, address[] recipients, uint256[] values) external",
   "function balanceOf(address account) view returns (uint256)",
   "function decimals() view returns (uint8)",
   "function symbol() view returns (string)",
-  "function name() view returns (string)"
+  "function name() view returns (string)",
+  // Fallback functions for tokens that might not implement name()
+  "function NAME() view returns (string)",
+  "function SYMBOL() view returns (string)"
 ];
 
 const CONTRACTS: Record<number, string> = {
@@ -27,6 +31,15 @@ const CONTRACTS: Record<number, string> = {
 };
 
 const BATCH_SIZE = 200;
+
+// Common token addresses
+const KNOWN_TOKENS: Record<number, Record<string, string>> = {
+  56: { // BSC
+    'USDT': '0x55d398326f99059fF775485246999027B3197955',
+    'BUSD': '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+    'USDC': '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d'
+  }
+};
 
 export default function Rainmaker() {
   const { 
@@ -47,6 +60,7 @@ export default function Rainmaker() {
   const [recipientCount, setRecipientCount] = useState(0);
   const [totalAmount, setTotalAmount] = useState("0");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [tokenDetectionError, setTokenDetectionError] = useState<string | null>(null);
 
   const currentNetwork = useMemo(() => 
     SUPPORTED_NETWORKS.find(n => n.chainId === chainId),
@@ -60,6 +74,9 @@ export default function Rainmaker() {
     if (window.ethereum) {
       window.ethereum.on('chainChanged', (chainId: string) => {
         setChainId(parseInt(chainId));
+        // Clear token info when changing networks
+        setTokenInfo(null);
+        setTokenAddress("");
       });
       window.ethereum.on('accountsChanged', (accounts: string[]) => {
         setAccount(accounts[0] || null);
@@ -90,35 +107,56 @@ export default function Rainmaker() {
   useEffect(() => {
     if (!account || !tokenAddress || !window.ethereum) {
       setTokenInfo(null);
+      setTokenDetectionError(null);
       return;
     }
-    
+
     const fetchTokenInfo = async () => {
+      setTokenDetectionError(null);
       try {
         const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const tokenContract = new ethers.Contract(tokenAddress, ABI, provider);
-        const [symbol, name, decimals, balance] = await Promise.all([
-          tokenContract.symbol(),
-          tokenContract.name(),
-          tokenContract.decimals(),
-          tokenContract.balanceOf(account)
-        ]);
-        
+        const address = ethers.utils.getAddress(tokenAddress.trim()); // Validate & checksum the address
+        const tokenContract = new ethers.Contract(address, ABI, provider);
+
+        let symbol, name, decimals, balance;
+
+        try {
+          [symbol, name, decimals, balance] = await Promise.all([
+            tokenContract.symbol(),
+            tokenContract.name(),
+            tokenContract.decimals(),
+            tokenContract.balanceOf(account)
+          ]);
+        } catch (err) {
+          // Fallback for tokens that might use uppercase functions
+          [symbol, name, decimals, balance] = await Promise.all([
+            tokenContract.SYMBOL(),
+            tokenContract.NAME(),
+            tokenContract.decimals(),
+            tokenContract.balanceOf(account)
+          ]);
+        }
+
         setTokenInfo({
           symbol,
           name,
           balance: ethers.utils.formatUnits(balance, decimals)
         });
         toast.success(`Detected ${name} (${symbol})`);
-      } catch (err) {
+      } catch (err: any) {
+        console.error('Token detection error:', err);
         setTokenInfo(null);
-        toast.error("Invalid token address");
+        const errorMessage = err.message.includes('call revert exception') 
+          ? 'Invalid token contract address'
+          : 'Failed to detect token';
+        setTokenDetectionError(errorMessage);
+        toast.error(errorMessage);
       }
     };
 
     const debounceTimer = setTimeout(fetchTokenInfo, 500);
     return () => clearTimeout(debounceTimer);
-  }, [account, tokenAddress]);
+  }, [account, tokenAddress, chainId]);
 
   const connectWallet = async () => {
     if (!window.ethereum) return toast.error("MetaMask not detected");
@@ -382,7 +420,29 @@ export default function Rainmaker() {
                       <p className="text-xs text-gray-400">Balance: {tokenInfo.balance}</p>
                     </motion.div>
                   )}
+                  {tokenDetectionError && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-sm"
+                    >
+                      {tokenDetectionError}
+                    </motion.div>
+                  )}
                 </div>
+                {chainId && KNOWN_TOKENS[chainId] && (
+                  <div className="mt-2 flex gap-2">
+                    {Object.entries(KNOWN_TOKENS[chainId]).map(([symbol, address]) => (
+                      <button
+                        key={symbol}
+                        onClick={() => setTokenAddress(address)}
+                        className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded hover:bg-blue-500/30 transition-colors"
+                      >
+                        {symbol}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap gap-4 items-center">
