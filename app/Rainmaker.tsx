@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { ethers } from "ethers";
-import { CloudRain, Upload, Wallet, Zap, History, RefreshCw, Info, X } from "lucide-react";
+import { CloudRain, Upload, Wallet, Zap, History, RefreshCw, Info, X, LogOut } from "lucide-react";
 import Head from "next/head";
 import toast, { Toaster } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -173,6 +173,14 @@ export default function Rainmaker() {
     }
   };
 
+  const disconnectWallet = () => {
+    setAccount(null);
+    setChainId(null);
+    setTokenInfo(null);
+    setTokenAddress("");
+    toast.success("Wallet disconnected");
+  };
+
   const switchNetwork = async (chainId: number) => {
     if (!window.ethereum) return;
     
@@ -341,15 +349,37 @@ export default function Rainmaker() {
                         {currentNetwork.name}
                       </div>
                     )}
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={connectWallet}
-                      className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-glow"
-                    >
-                      <Wallet className="w-4 h-4" />
-                      {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
-                    </motion.button>
+                    {account ? (
+                      <div className="flex gap-2">
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-glow"
+                        >
+                          <Wallet className="w-4 h-4" />
+                          {`${account.slice(0, 6)}...${account.slice(-4)}`}
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={disconnectWallet}
+                          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Disconnect
+                        </motion.button>
+                      </div>
+                    ) : (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={connectWallet}
+                        className="flex items-center gap-2 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-glow"
+                      >
+                        <Wallet className="w-4 h-4" />
+                        Connect Wallet
+                      </motion.button>
+                    )}
                   </div>
                 </div>
                 <div className="mt-4 flex gap-2 flex-wrap">
